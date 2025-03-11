@@ -2,9 +2,9 @@
 <!-- TOC --><a name="mixture-of-experts-moe-implementation-in-pytorch"></a>
 # Mixture-of-Experts (MoE) Implementation in PyTorch
 
-This repository provides two implementations of a Mixture-of-Experts (MoE) architecture designed for research on large language models (LLMs) and scalable neural network designs. One implementation targets a **single-device/NPU environment** while the other is built for **multi-device distributed computing**. Both versions showcase the core principles of MoE architectures, including dynamic routing, expert specialization, load balancing, and capacity control.
+This repository provides two implementations of a Mixture-of-Experts (MoE) architecture designed for research on large language models (LLMs) and scalable neural network designs. One implementation targets a **single-device/NPU environment** while the other is built for **multi-device distributed computing**. Both versions showcase the core principles of MoE architectures, including dynamic routing, expert specialization, load balancing, and capacity control. At the end of the contents, I've also attached #8 as a summary of the technical details of MoE architecture.
 
-## Content 
+## Contents
 
 <!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
 
@@ -23,6 +23,16 @@ This repository provides two implementations of a Mixture-of-Experts (MoE) archi
    * [5.6 Training and Inference Lifecycle](#56-training-and-inference-lifecycle)
 - [6. Summary](#6-summary)
 - [7. How to Use](#7-how-to-use)
+- [8. Mixture of Experts (MoE) Model: A Detailed Technical Overview](#8-mixture-of-experts-moe-model-a-detailed-technical-overview)
+   * [8.1 MoE Model Architecture](#81-moe-model-architecture)
+   * [8.2 MoE Optimization](#82-moe-optimization)
+   * [8.3 DeepSeek GRPO and the Two Main RLHF Approaches in LLMs](#83-deepseek-grpo-and-the-two-main-rlhf-approaches-in-llms)
+   * [8.4 DeepSeek V-1 MoE, January 2024: The Inaugural Work](#84-deepseek-v-1-moe-january-2024-the-inaugural-work)
+   * [8.5 Core Principles of MoE](#85-core-principles-of-moe)
+   * [8.6 Trade-off Between Model Scale and Computational Efficiency](#86-trade-off-between-model-scale-and-computational-efficiency)
+   * [8.7 References](#87-references)
+   * [Acknowledgements](#acknowledgements)
+   * [License](#license)
 
 <!-- TOC end -->
 
@@ -182,12 +192,125 @@ Both implementations highlight key challenges in MoE research such as dynamic ro
      ```
    - Adjust hyperparameters and device configurations as needed.
 
+<!-- TOC --><a name="8-mixture-of-experts-moe-model-a-detailed-technical-overview"></a>
+# 8. Mixture of Experts (MoE) Model: A Detailed Technical Overview
+
+Mixture of Experts (MoE) is a hybrid expert model characterized by small individual parameter sizes and multiple experts. It is based on supervised learning combined with a divide-and-conquer strategy, serving as the foundation for modular neural networks—similar to ensemble learning. According to the scaling law, large models tend to perform better, and since only a subset of parameters is activated during inference, DeepSeek achieves low inference cost.
+
+<!-- TOC --><a name="81-moe-model-architecture"></a>
+## 8.1 MoE Model Architecture
+
+- **Sparse MoE Layer:**  
+  The sparse MoE layer replaces the Transformer FFN layer (saving computational resources) by incorporating numerous experts—each being a neural network. The sparsity ensures that only a portion of the experts is activated, rather than engaging all parameters in every computation. This mechanism enables efficient inference while scaling to extremely large models, thereby enhancing the model’s representational capability.
+
+- **Expert Modularity and Gating Mechanism:**  
+  Experts are modular; different experts learn different features and are capable of processing large-scale data. The gating network (or routing mechanism) consists of a learnable gate combined with expert load balancing. It dynamically coordinates which tokens activate which experts during computation, learning in tandem with the experts. In sparse gating, only a subset of experts is activated, while dense gating activates all experts. Soft gating, on the other hand, enables a differentiable merging of experts and tokens.
+
+Training Efficiency Improvements
+
+- **Training:**  
+  Expert parallelism (EP) employs All2All communication—which requires less bandwidth—allowing each expert to process a portion of the batch, thereby increasing throughput.
+
+- **Inference:**  
+  Only a small number of experts are activated (resulting in low latency), and even as the number of experts increases, the inference cost remains unchanged.
+
+<!-- TOC --><a name="82-moe-optimization"></a>
+## 8.2 MoE Optimization
+
+- **Expert Parallel Computation:**  
+  Distributing computation across experts to maximize parallelism.
+
+- **Enhanced Capacity Factor and Memory Bandwidth:**  
+  Improving the capacity factor and optimizing GPU memory bandwidth for better performance.
+
+- **MoE Model Distillation:**  
+  Distilling the MoE model into a corresponding smaller dense model.
+
+- **Task-level Routing and Expert Aggregation:**  
+  Simplifying the model by reducing the number of experts through routing and aggregation at the task level.
+
+<!-- TOC --><a name="83-deepseek-grpo-and-the-two-main-rlhf-approaches-in-llms"></a>
+## 8.3 DeepSeek GRPO and the Two Main RLHF Approaches in LLMs
+
+- **On-Policy (PPO):**  
+  In each training iteration, the model (Actor) generates outputs and is guided by feedback from a Critic, which acts as a coach to provide rewards.  
+  **Advantages:** High efficiency.  
+  **Disadvantages:** Limited model capability.  
+  Notably, PPO involves four models (Actor, Critic, Reward, Reference), which leads to high computational cost.
+
+- **Off-Policy (DPO):**  
+  This approach relies on existing annotations for analysis, though there is a risk that the samples may not match the model perfectly.  
+  **Advantages:** Potentially reaches the upper bound of model performance.  
+  **Disadvantages:** Lower efficiency.
+
+- **GRPO:**  
+  GRPO eliminates the need for a value function by aligning with the comparative nature of the reward model and incorporating a KL penalty into the loss function. DeepSeek GRPO avoids the approximation of a Critic Value Model (as seen in PPO) by using the average reward from multiple sampled outputs under the same problem as a baseline. In this way, the Actor (without a Critic) directly aligns with the Reward by averaging and then computing the KL divergence with the Policy.
+
+<!-- TOC --><a name="84-deepseek-v-1-moe-january-2024-the-inaugural-work"></a>
+## 8.4 DeepSeek V-1 MoE, January 2024: The Inaugural Work
+
+- **Fine-Grained Expert Division:**  
+  The model is subdivided into many small experts—small in size yet numerous. Different experts can be flexibly combined (e.g., halving FFN parameters while doubling the number of experts).
+
+- **Isolation of Shared Experts:**  
+  A separate FFN is dedicated to shared experts, allowing other experts to acquire common knowledge. This improves the specialization of individual experts, and some experts even share parameters across different tokens or layers, thereby reducing routing redundancy.
+
+- **Load Balancing and Memory Optimization:**  
+  Employs a multi-head latent attention mechanism (MLA) along with key-value caching to reduce latency. Efficiency is further improved with FP8 mixed precision and DualPipe, reducing both training time and communication overhead.
+
+- **Three-Stage Training Process:**  
+  The training procedure is divided into three stages: expert incubation, specialization reinforcement, and collaborative optimization.
+
+<!-- TOC --><a name="85-core-principles-of-moe"></a>
+## 8.5 Core Principles of MoE
+
+- **MoE Composition:**  
+  MoE consists of experts (feed-forward neural network matrix layers) and a routing/gating network (which acts as a switch to determine which expert each token selects).
+
+- **Decoder-Only Transformer Architecture:**  
+  In this architecture, the FFN layers are replaced by multiple expert FFNs. The dense information from a dense model is partitioned into many small groups of experts, converting the model into a sparse one—where only the top-k experts are used in each layer. A routing process then forms a pathway to the final answer.
+
+- **Expert Selection via Routing:**  
+  The routing mechanism employs an FFN followed by a softmax to compute the probability for each expert, thus determining expert selection.
+
+- **Sparse Architecture Variants:**  
+  Transformers can be categorized into Dense and MoE architectures. Within MoE, there are two variants: Dense MoE (which selects all experts) and Sparse MoE (which aggregates outputs after selecting the top-k experts).
+
+- **Load Balancing Considerations:**  
+  If one expert computes significantly faster than others, the routing pathway may automatically favor that expert, leading to an imbalance.  
+  - To mitigate this, a KeepTopK expert selection strategy is applied with the injection of Gaussian noise, selectively suppressing the over-frequent selection of a particular expert and reducing its score.  
+  - **Auxiliary Loss:** An additional loss (distinct from the primary network loss) is used for load balancing. This involves incorporating an importance factor to evaluate each expert's contribution to the network. By using the coefficient of variation, the loss function suppresses the most frequently used experts, ensuring a balanced load distribution.  
+  - **Expert Capacity:** The maximum number of tokens that each expert can process is limited to maintain overall network balance.
+
+<!-- TOC --><a name="86-trade-off-between-model-scale-and-computational-efficiency"></a>
+## 8.6 Trade-off Between Model Scale and Computational Efficiency
+
+- **2024 Scenario:**  
+  Models with large parameters and few experts are easier to train but come with high computational costs, uneven load distribution, and low expert utilization.
+
+- **2025 Trend:**  
+  The trend is shifting towards models with small parameters and many experts (e.g., DeepSeek-V3 with 256 experts). These models feature fine-grained expert division and dynamic routing for optimized load balancing, resulting in:
+  - High computational efficiency.
+  - Strong generalization and scalability.
+  - Lower cost.
+  - Increased model capacity with higher parameter counts.
+  - Lower inference cost (only necessary parameters are activated).
+  - Enhanced task adaptability (Expert-as-a-Service).
+
+<!-- TOC --><a name="87-references"></a>
+## 8.7 References
+
+- [Video: A Visual Guide to Mixture of Experts (MoE) in LLMs, Maarten Grootendorst](https://www.youtube.com/watch?v=sOPDGQjFcuM)
+- [Github: AI-LLM-ML-CS-Quant-Readings/DeepSeek](https://github.com/junfanz1/AI-LLM-ML-CS-Quant-Readings/tree/main/DeepSeek)
+
 ---
 
+<!-- TOC --><a name="acknowledgements"></a>
 ## Acknowledgements
 
 [Zomi's AI Infra Github](https://github.com/chenzomi12/AIInfra)
 
+<!-- TOC --><a name="license"></a>
 ## License
 
 Distributed under the MIT License. See the [LICENSE](LICENSE) file for more information.
