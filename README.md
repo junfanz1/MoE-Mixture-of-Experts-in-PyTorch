@@ -1,10 +1,37 @@
+
+<!-- TOC --><a name="mixture-of-experts-moe-implementation-in-pytorch"></a>
 # Mixture-of-Experts (MoE) Implementation in PyTorch
 
 This repository provides two implementations of a Mixture-of-Experts (MoE) architecture designed for research on large language models (LLMs) and scalable neural network designs. One implementation targets a **single-device/NPU environment** while the other is built for **multi-device distributed computing**. Both versions showcase the core principles of MoE architectures, including dynamic routing, expert specialization, load balancing, and capacity control.
 
+## Content 
+
+<!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
+
+- [1. Overview and Purpose](#1-overview-and-purpose)
+- [2. Architecture Components](#2-architecture-components)
+- [3. Tech Stack](#3-tech-stack)
+- [4. Distributed Computing and Load Balance Considerations](#4-distributed-computing-and-load-balance-considerations)
+   * [4.1 Distributed Implementation (`moe_intral.py`)](#41-distributed-implementation-moe_intralpy)
+   * [4.2 Single-Device Implementation (`moe_stand.py`)](#42-single-device-implementation-moe_standpy)
+- [5. Breakdown Analysis: Functions and Model Lifecycle](#5-breakdown-analysis-functions-and-model-lifecycle)
+   * [5.1 Expert Modules](#51-expert-modules)
+   * [5.2 Data Generation and Preprocessing](#52-data-generation-and-preprocessing)
+   * [5.3 Routing Mechanism](#53-routing-mechanism)
+   * [5.4 Expert Assignment and Capacity Control](#54-expert-assignment-and-capacity-control)
+   * [5.5 Distributed Communication and Load Balancing](#55-distributed-communication-and-load-balancing)
+   * [5.6 Training and Inference Lifecycle](#56-training-and-inference-lifecycle)
+- [6. Summary](#6-summary)
+- [7. How to Use](#7-how-to-use)
+   * [Acknowledgements](#acknowledgements)
+   * [License](#license)
+
+<!-- TOC end -->
+
 ---
 
-## Overview and Purpose
+<!-- TOC --><a name="1-overview-and-purpose"></a>
+# 1. Overview and Purpose
 
 The primary goal of this implementation is to explore and experiment with MoE architectures that:
 - **Enhance model capacity** by combining multiple expert networks.
@@ -16,9 +43,8 @@ These implementations are intended for research in large-scale model design, eff
 
 ---
 
-## Technical Details
-
-### Architecture Components
+<!-- TOC --><a name="2-architecture-components"></a>
+# 2. Architecture Components
 
 1. **Expert Networks**
    - Each expert is a small feed-forward neural network (MLP) with a couple of linear layers and a GELU activation.
@@ -45,7 +71,8 @@ These implementations are intended for research in large-scale model design, eff
 
 ---
 
-## Tech Stack
+<!-- TOC --><a name="3-tech-stack"></a>
+# 3. Tech Stack
 
 - **PyTorch:** Core deep learning framework used for model building, training, and distributed computing.
 - **torch.distributed & DistributedDataParallel (DDP):** Employed in the distributed implementation for synchronizing gradients and expert usage across multiple processes/devices.
@@ -54,9 +81,11 @@ These implementations are intended for research in large-scale model design, eff
 
 ---
 
-## Distributed Computing and Load Balance Considerations
+<!-- TOC --><a name="4-distributed-computing-and-load-balance-considerations"></a>
+# 4. Distributed Computing and Load Balance Considerations
 
-### Distributed Implementation (`moe_intral.py`)
+<!-- TOC --><a name="41-distributed-implementation-moe_intralpy"></a>
+## 4.1 Distributed Implementation (`moe_intral.py`)
 - **Device Allocation:** Each expert is explicitly assigned to a different GPU (using `cuda: {i}`) to enable parallel computation.
 - **Distributed Data Sampling:** Uses `DistributedSampler` to ensure that data is partitioned evenly across devices.
 - **Process Group Initialization:** The training routine initializes a distributed process group (using `dist.init_process_group` with the NCCL backend) and assigns each process a unique rank.
@@ -65,31 +94,37 @@ These implementations are intended for research in large-scale model design, eff
   - **Auxiliary Losses:** Load balance and importance losses are computed on the aggregated data, ensuring that the routing mechanism is globally optimized.
 - **Inter-Device Communication:** Inputs and expert outputs are explicitly transferred between devices to ensure that the correct data is processed by the corresponding expert and that outputs are aggregated back on the originating device.
 
-### Single-Device Implementation (`moe_stand.py`)
+<!-- TOC --><a name="42-single-device-implementation-moe_standpy"></a>
+## 4.2 Single-Device Implementation (`moe_stand.py`)
 - **Simplified Routing and Aggregation:** Runs entirely on one device, making it easier to debug and benchmark.
 - **Capacity Control:** Each expert can process a limited number of tokens per batch (enforced via the `expert_capacity` parameter), which is crucial when simulating MoE behavior in resource-constrained environments.
 - **Auxiliary Loss Computation:** Although less complex than the distributed version, the single-device version still implements balancing strategies to ensure no expert is under- or over-utilized during training.
 
 ---
 
-## Breakdown Analysis: Functions and Model Lifecycle
+<!-- TOC --><a name="5-breakdown-analysis-functions-and-model-lifecycle"></a>
+# 5. Breakdown Analysis: Functions and Model Lifecycle
 
-### 1. Expert Modules
+<!-- TOC --><a name="51-expert-modules"></a>
+## 5.1 Expert Modules
 - **`Expert` Class (both files):**
   - Implements a feed-forward network with linear layers and activation functions.
   - Provides the basic building block for expert specialization.
 
-### 2. Data Generation and Preprocessing
+<!-- TOC --><a name="52-data-generation-and-preprocessing"></a>
+## 5.2 Data Generation and Preprocessing
 - **`gen_data` (in `moe_intral.py`):**
   - Simulates input data using a Gaussian distribution.
   - Generates random labels for testing and debugging the MoE training loop.
 
-### 3. Routing Mechanism
+<!-- TOC --><a name="53-routing-mechanism"></a>
+## 5.3 Routing Mechanism
 - **`router` / `gate`:**
   - In `moe_intral.py`, a single linear layer computes logits which are then softmaxed to produce routing probabilities.
   - In `moe_stand.py`, a two-layer routing mechanism (a linear layer followed by softmax) performs a similar role.
 
-### 4. Expert Assignment and Capacity Control
+<!-- TOC --><a name="54-expert-assignment-and-capacity-control"></a>
+## 5.4 Expert Assignment and Capacity Control
 - **Top-k Selection:**
   - Both implementations use `torch.topk` to select the highest scoring experts per sample.
   - This dynamic selection is key to the MoE strategy, ensuring that each sample is processed by the most relevant experts.
@@ -97,7 +132,8 @@ These implementations are intended for research in large-scale model design, eff
   - Limits the number of tokens processed by each expert, ensuring that the computational load is balanced.
   - In the distributed version, capacity is computed relative to the total batch size and the number of devices.
 
-### 5. Distributed Communication and Load Balancing
+<!-- TOC --><a name="55-distributed-communication-and-load-balancing"></a>
+## 5.5 Distributed Communication and Load Balancing
 - **Global Aggregation (Distributed Version):**
   - Uses `dist.all_reduce` to aggregate expert usage counts and importance metrics.
   - The balance loss is computed by comparing expected expert usage with actual distribution across all devices.
@@ -105,7 +141,8 @@ These implementations are intended for research in large-scale model design, eff
   - Both implementations compute additional losses (importance loss and load balance loss) to steer the routing decisions during training.
   - These losses are integrated with the primary loss function to guide model optimization.
 
-### 6. Training and Inference Lifecycle
+<!-- TOC --><a name="56-training-and-inference-lifecycle"></a>
+## 5.6 Training and Inference Lifecycle
 - **Initialization:**
   - **Distributed Training:** In `moe_intral.py`, processes are spawned using `torch.multiprocessing.spawn`, each initializing its process group and setting the device context.
   - **Standard Training:** In `moe_stand.py`, the model and data are loaded onto a single device (or NPU) for iterative training.
@@ -118,7 +155,8 @@ These implementations are intended for research in large-scale model design, eff
 
 ---
 
-## Summary
+<!-- TOC --><a name="6-summary"></a>
+# 6. Summary
 
 This repository demonstrates two approaches to implementing Mixture-of-Experts:
 - **Distributed MoE (`moe_intral.py`):** Emphasizes multi-device training, inter-device communication, and global load balancing for large-scale systems.
@@ -128,7 +166,8 @@ Both implementations highlight key challenges in MoE research such as dynamic ro
 
 ---
 
-## How to Use
+<!-- TOC --><a name="7-how-to-use"></a>
+# 7. How to Use
 
 1. **Distributed Version (`moe_intral.py`):**
    - Set up the necessary environment variables for distributed training (`MASTER_ADDR` and `MASTER_PORT`).
@@ -147,6 +186,12 @@ Both implementations highlight key challenges in MoE research such as dynamic ro
 
 ---
 
+<!-- TOC --><a name="acknowledgements"></a>
+## Acknowledgements
+
+[Zomi's AI Infra Github](https://github.com/chenzomi12/AIInfra)
+
+<!-- TOC --><a name="license"></a>
 ## License
 
 Distributed under the MIT License. See the [LICENSE](LICENSE) file for more information.
