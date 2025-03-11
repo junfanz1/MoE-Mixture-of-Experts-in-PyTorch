@@ -23,8 +23,6 @@ This repository provides two implementations of a Mixture-of-Experts (MoE) archi
    * [5.6 Training and Inference Lifecycle](#56-training-and-inference-lifecycle)
 - [6. Summary](#6-summary)
 - [7. How to Use](#7-how-to-use)
-   * [Acknowledgements](#acknowledgements)
-   * [License](#license)
 
 <!-- TOC end -->
 
@@ -186,12 +184,10 @@ Both implementations highlight key challenges in MoE research such as dynamic ro
 
 ---
 
-<!-- TOC --><a name="acknowledgements"></a>
 ## Acknowledgements
 
 [Zomi's AI Infra Github](https://github.com/chenzomi12/AIInfra)
 
-<!-- TOC --><a name="license"></a>
 ## License
 
 Distributed under the MIT License. See the [LICENSE](LICENSE) file for more information.
