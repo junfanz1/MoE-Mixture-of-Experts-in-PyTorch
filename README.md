@@ -342,8 +342,21 @@ Training Efficiency Improvements
 <!-- TOC --><a name="87-references"></a>
 ## 8.7 References
 
-- [Video: A Visual Guide to Mixture of Experts (MoE) in LLMs, Maarten Grootendorst](https://www.youtube.com/watch?v=sOPDGQjFcuM)
-- [Github: AI-LLM-ML-CS-Quant-Readings/DeepSeek](https://github.com/junfanz1/AI-LLM-ML-CS-Quant-Readings/tree/main/DeepSeek)
+> [Video: A Visual Guide to Mixture of Experts (MoE) in LLMs, Maarten Grootendorst](https://www.youtube.com/watch?v=sOPDGQjFcuM)
+
+> [Github: AI-LLM-ML-CS-Quant-Readings/DeepSeek](https://github.com/junfanz1/AI-LLM-ML-CS-Quant-Readings/tree/main/DeepSeek)
+
+DeepSeek Theory
+
+> [Educative: Everything You Need to Know About DeepSeek](https://www.educative.io/verify-certificate/GZjlABCqZ1G2n7mWjuroy1MXK2GBIm) | [__Notes__](https://github.com/junfanz1/AI-LLM-ML-CS-Quant-Readings/blob/main/DeepSeek/DeepSeek%20Essentials.md)
+
+> [Zomi酱-Bilibili](https://space.bilibili.com/517221395/upload/video) | [Github](https://github.com/chenzomi12/AIFoundation/) | [__Notes-Chinese__](https://github.com/junfanz1/AI-ML-CS-Quant-Readings/blob/main/DeepSeek/DeepSeek%20Theory.md)
+
+ DeepSeek Applications
+
+> [GeekBang: DeepSeek HandsOn](https://time.geekbang.org/column/101000501) | [__Notes-Chinese__](https://github.com/junfanz1/AI-LLM-ML-CS-Quant-Readings/blob/main/DeepSeek/DeepSeek%20HandsOn.md)
+
+> [GeekBang: DeepSeek App Development](https://time.geekbang.org/column/intro/100995901) | [__Notes-Chinese__](https://github.com/junfanz1/AI-ML-CS-Quant-Readings/blob/main/DeepSeek/DeepSeek%20Developer%20Practice.md)
 
 ---
 
